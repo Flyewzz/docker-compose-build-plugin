@@ -11,7 +11,6 @@ import com.intellij.util.ui.FormBuilder
 import org.apache.commons.cli.DefaultParser
 import org.apache.commons.cli.Options
 import org.apache.commons.cli.ParseException
-import org.jetbrains.annotations.NotNull
 import java.io.File
 import javax.swing.JComponent
 import javax.swing.JPanel
