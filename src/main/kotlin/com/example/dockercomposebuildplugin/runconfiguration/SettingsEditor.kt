@@ -32,6 +32,7 @@ class DockerComposeBuildSettingsEditor(private val project: Project) : SettingsE
         .addOption("progress", true, "Set type of progress output (auto, plain, tty)")
         .addOption("pull", false, "Always attempt to pull a newer version of the image")
         .addOption("q", "quiet", false, "Don't print anything to STDOUT")
+        .addOption("f", "file", true, "Path to docker-compose.yml file")
 
     init {
         dockerPathField = TextFieldWithBrowseButton()

@@ -44,20 +44,49 @@ class DockerComposeBuildRunConfiguration(
         return object : CommandLineState(environment) {
             @Throws(ExecutionException::class)
             override fun startProcess(): ProcessHandler {
-                var command = arrayListOf(options.dockerPath ?: "")
-                if (command[0].isNotEmpty()) {
+                val dockerPath = options.dockerPath ?: ""
+                if (dockerPath.isEmpty()) {
+                    throw ExecutionException("docker-compose path is not specified")
+                }
+
+                val command = mutableListOf(dockerPath)
+
+                val args = options.commandArgs
+                    ?.split(" ")
+                    ?.filter { it.isNotBlank() && it.isNotEmpty() }
+                    ?.map { it.replace("_", "-") }
+                    ?.toMutableList()
+                if (args != null) {
+                    var fileIndex = args.indexOf("-f")
+                    if (fileIndex == -1) {
+                        fileIndex = args.indexOf("--file")
+                    }
+
+                    if (fileIndex != -1 && fileIndex < args.size - 1) {
+                        // If `-f` option is found, move it and its value to the correct position
+                        command.add("-f")
+                        command.add(args[fileIndex + 1])
+                        args.removeAt(fileIndex + 1)
+                        args.remove("-f")
+                        args.remove("--file")
+                    }
+
+                    command.add("build")
+                    command.addAll(args)
+                } else {
                     command.add("build")
                 }
 
-                options.commandArgs?.let { args ->
-                    args
-                        .split(" ")
-                        .filter { it.isNotBlank() && it.isNotEmpty() }
-                        // arguments with '-' are not supported
-                        .forEach{ command.add(it.replace('_', '-')) }
+                val commandLine = GeneralCommandLine(command)
+
+                // Set the working directory to the project base path
+                val basePath = environment.project.basePath
+                if (basePath != null) {
+                    commandLine.withWorkDirectory(basePath)
+                } else {
+                    throw ExecutionException("Project base path is null")
                 }
 
-                val commandLine = GeneralCommandLine(command.toList())
                 val processHandler = ProcessHandlerFactory.getInstance()
                     .createColoredProcessHandler(commandLine)
                 ProcessTerminatedListener.attach(processHandler)
