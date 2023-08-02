@@ -5,7 +5,7 @@ import com.intellij.icons.AllIcons
 import com.intellij.openapi.util.NotNullLazyValue
 
 
-open class DockerComposeBuildRunConfigurationType protected constructor() :
+open class DockerComposeBuildRunConfigurationType() :
     ConfigurationTypeBase(
         ID, "Docker Compose build", "DockerComposeBuild run configuration type",
         NotNullLazyValue.createValue { AllIcons.Nodes.Console }) {

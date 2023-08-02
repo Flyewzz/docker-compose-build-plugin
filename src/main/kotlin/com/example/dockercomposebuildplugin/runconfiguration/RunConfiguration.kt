@@ -26,6 +26,12 @@ class DockerComposeBuildRunConfiguration(
             options.dockerPath = dockerPath
         }
 
+    var dockerComposeFilePath: String?
+        get() = options.dockerComposeFilePath
+        set(value) {
+            options.dockerComposeFilePath = value
+        }
+
     var commandArgs: String?
         get() = options.commandArgs
         set(commandArgs) {
@@ -51,30 +57,17 @@ class DockerComposeBuildRunConfiguration(
 
                 val command = mutableListOf(dockerPath)
 
+                command.add("-f")
+                command.add(options.dockerComposeFilePath!!)
+
+                command.add("build")
                 val args = options.commandArgs
                     ?.split(" ")
                     ?.filter { it.isNotBlank() && it.isNotEmpty() }
                     ?.map { it.replace("_", "-") }
                     ?.toMutableList()
                 if (args != null) {
-                    var fileIndex = args.indexOf("-f")
-                    if (fileIndex == -1) {
-                        fileIndex = args.indexOf("--file")
-                    }
-
-                    if (fileIndex != -1 && fileIndex < args.size - 1) {
-                        // If `-f` option is found, move it and its value to the correct position
-                        command.add("-f")
-                        command.add(args[fileIndex + 1])
-                        args.removeAt(fileIndex + 1)
-                        args.remove("-f")
-                        args.remove("--file")
-                    }
-
-                    command.add("build")
                     command.addAll(args)
-                } else {
-                    command.add("build")
                 }
 
                 val commandLine = GeneralCommandLine(command)
