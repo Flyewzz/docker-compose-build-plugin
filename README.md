@@ -1,6 +1,6 @@
 # Docker Compose Build Plugin for IntelliJ IDEA
 
-This plugin allows you to easily build Docker Compose projects directly from your IntelliJ IDEA interface. It provides auto-completion for `docker-compose build` commands and validates Docker Compose paths and arguments.
+This plugin allows you to easily build Docker Compose projects directly from your IntelliJ IDEA interface. It provides auto-completion for `docker-compose build` commands, validates Docker Compose paths and arguments, and more.
 
 ![Plugin Screenshot](images/screenshot.png)
 
@@ -10,6 +10,8 @@ This plugin allows you to easily build Docker Compose projects directly from you
 - Validation of Docker Compose paths and arguments.
 - Specify the path to the `docker-compose.yml` file.
 - Simple and user-friendly UI.
+- Auto-complete docker-compose files from the project directory and subfolders.
+- Validates commands to ensure that options that can only occur once are only met once.
 
 ## Getting Started
 

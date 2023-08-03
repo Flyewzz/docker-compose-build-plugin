@@ -19,10 +19,9 @@ class DockerComposeBuildConfigurationFactory(type: ConfigurationType?) : Configu
     override fun getId(): String {
         return DockerComposeBuildRunConfigurationType.ID
     }
+
     @Nullable
     override fun getOptionsClass(): Class<out BaseState>? {
         return DockerComposeBuildRunConfigurationOptions::class.java
     }
-
-//    override fun getIcon() = Icons.PLUGIN_ICON
 }
