@@ -46,4 +46,23 @@ class FileAutoFindingTest : BaseDockerComposeTestCase() {
         // Check that the Docker Compose file field is set to the path of the first file
         assertEquals(firstFile.absolutePath, editor.getDockerComposeFileFieldText())
     }
+
+    @Test
+    fun `test Docker Compose empty project`() {
+        editor.resetEditorFrom(runConfiguration)
+
+        // Check that the Docker Compose file field is empty
+        assertEquals("", editor.getDockerComposeFileFieldText())
+    }
+
+    @Test
+    fun `test Docker Compose in subdirectory if none in root`() {
+        val subDir = createAndRefreshDirectory("subdir")
+        val subDirFile = createAndRefreshFile("docker-compose.yml", subDir)
+
+        editor.resetEditorFrom(runConfiguration)
+
+        // Check that the Docker Compose file field is set to the path of the subdirectory file
+        assertEquals(subDirFile.absolutePath, editor.getDockerComposeFileFieldText())
+    }
 }
