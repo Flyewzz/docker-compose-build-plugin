@@ -16,7 +16,6 @@ import javax.swing.JComponent
 import javax.swing.JPanel
 import com.intellij.openapi.fileChooser.FileChooserDescriptor
 import com.intellij.openapi.ui.TextBrowseFolderListener
-import com.intellij.openapi.vfs.VfsUtilCore
 import com.intellij.openapi.vfs.VirtualFile
 import org.apache.commons.cli.Option
 import org.jetbrains.annotations.VisibleForTesting
@@ -61,7 +60,8 @@ open class DockerComposeBuildSettingsEditor(project: Project) : SettingsEditor<D
             .panel
     }
 
-    override fun resetEditorFrom(runConfiguration: DockerComposeBuildRunConfiguration) {
+    @VisibleForTesting
+    public override fun resetEditorFrom(runConfiguration: DockerComposeBuildRunConfiguration) {
         val defaultPath = when {
             SystemInfo.isWindows -> "C:\\Program Files\\Docker\\Docker\\resources\\bin\\docker-compose.exe"
             SystemInfo.isMac -> "/usr/local/bin/docker-compose"
@@ -103,22 +103,20 @@ open class DockerComposeBuildSettingsEditor(project: Project) : SettingsEditor<D
         }
 
         val args = commandArgsField.text
-            ?.split(" ")
-            ?.filter { it.isNotBlank() && it.isNotEmpty() }
+            .split(" ")
+            .filter { it.isNotBlank() && it.isNotEmpty() }
 
-        if (args != null) {
-            val optionsMap = myOptions.options.flatMap { listOf(it.opt to it, it.longOpt to it) }.toMap()
+        val optionsMap = myOptions.options.flatMap { listOf(it.opt to it, it.longOpt to it) }.toMap()
 
-            val argCount = mutableMapOf<Option, Int>()
+        val argCount = mutableMapOf<Option, Int>()
 
-            for (arg in args) {
-                val argWithoutPrefix = arg.removePrefix("--").removePrefix("-")
-                val option = optionsMap[argWithoutPrefix]
-                if (option != null) {
-                    argCount[option] = argCount.getOrDefault(option, 0) + 1
-                    if (argCount[option]!! > 1) {
-                        throw ConfigurationException("$arg option cannot be used more than once")
-                    }
+        for (arg in args) {
+            val argWithoutPrefix = arg.removePrefix("--").removePrefix("-")
+            val option = optionsMap[argWithoutPrefix]
+            if (option != null) {
+                argCount[option] = argCount.getOrDefault(option, 0) + 1
+                if (argCount[option]!! > 1) {
+                    throw ConfigurationException("$arg option cannot be used more than once")
                 }
             }
         }
@@ -139,12 +137,25 @@ class DockerComposeCompletionProvider(options: Options?) : CommandLineCompletion
 
 private fun findDockerComposeFile(project: Project): VirtualFile? {
     val projectDir = project.baseDir ?: return null
-    val dockerComposeFiles = mutableListOf<VirtualFile>()
-    VfsUtilCore.iterateChildrenRecursively(projectDir, { true }) { virtualFile ->
-        if (virtualFile.extension in listOf("yml", "yaml") && virtualFile.nameWithoutExtension == "docker-compose") {
-            dockerComposeFiles.add(virtualFile)
+
+    // Prepare a queue for directories to check
+    val directoriesToCheck = ArrayDeque<VirtualFile>()
+    directoriesToCheck.addFirst(projectDir)
+
+    // Check directories one by one, from root to subdirectories
+    while (directoriesToCheck.isNotEmpty()) {
+        val directory = directoriesToCheck.removeFirst()
+        val dockerComposeFile = directory.children.find {
+            it.extension in listOf("yml", "yaml") && it.nameWithoutExtension == "docker-compose"
         }
-        true
+        if (dockerComposeFile != null) {
+            return dockerComposeFile
+        } else {
+            // If not found, add all subdirectories to the queue
+            directoriesToCheck.addAll(directory.children.filter { it.isDirectory })
+        }
     }
-    return dockerComposeFiles.firstOrNull()
+
+    // if no docker-compose file was found
+    return null
 }
