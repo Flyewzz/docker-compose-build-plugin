@@ -1,62 +1,38 @@
 package com.example.dockercomposebuildplugin
 
-import DockerComposeBuildRunConfiguration
-import DockerComposeBuildSettingsEditor
-import com.example.dockercomposebuildplugin.runconfiguration.DockerComposeBuildConfigurationFactory
-import com.example.dockercomposebuildplugin.runconfiguration.DockerComposeBuildRunConfigurationType
 import com.intellij.openapi.options.ConfigurationException
-import com.intellij.openapi.project.Project
-import com.intellij.testFramework.fixtures.BasePlatformTestCase
+import com.intellij.openapi.vfs.LocalFileSystem
 import org.junit.Test
 import java.nio.file.Files
 import java.nio.file.Path
 import java.nio.file.attribute.PosixFilePermission
 
 
-class TestableDockerComposeBuildSettingsEditor(project: Project) : DockerComposeBuildSettingsEditor(project) {
-    fun setDockerPathFieldText(text: String) {
-        dockerPathField.text = text
-    }
-
-    fun setDockerComposeFileFieldText(text: String) {
-        dockerComposeFileField.text = text
-    }
-
-    fun setCommandArgsFieldText(text: String) {
-        commandArgsField.text = text
-    }
-}
-
-class DockerComposeBuildSettingsEditorTest : BasePlatformTestCase() {
+class DockerComposeApplyEditorToSettingsEditorTest : BaseDockerComposeTestCase() {
     private lateinit var dockerComposePath: Path
     private lateinit var dockerComposeConfigPath: Path
-    private lateinit var runConfiguration: DockerComposeBuildRunConfiguration
-    private lateinit var editor: TestableDockerComposeBuildSettingsEditor
 
     @Throws(Exception::class)
     override fun setUp() {
         super.setUp()
 
         // Create a real temporary file for docker-compose executable and set it as executable
-        dockerComposePath = Files.createTempFile("docker-compose", null)
+        dockerComposePath = createAndRefreshFile("docker-compose").toPath()
         Files.setPosixFilePermissions(dockerComposePath, setOf(PosixFilePermission.OWNER_EXECUTE))
 
         // Create real "file" for Docker Compose config path
-        dockerComposeConfigPath = Files.createTempFile("docker-compose.yml", null)
-
-        runConfiguration = DockerComposeBuildRunConfiguration(
-            project,
-            DockerComposeBuildConfigurationFactory(DockerComposeBuildRunConfigurationType()),
-            "DockerComposeBuild",
-        )
-        editor = TestableDockerComposeBuildSettingsEditor(project)
+        dockerComposeConfigPath = createAndRefreshFile("docker-compose.yml").toPath()
     }
 
     @Throws(Exception::class)
     override fun tearDown() {
-        // Delete the temporary files
-        dockerComposePath.toFile().delete()
-        dockerComposeConfigPath.toFile().delete()
+        projectDir?.let {
+            if (it.exists()) {
+                it.delete()
+            }
+        }
+
+        LocalFileSystem.getInstance().refresh(false)
 
         super.tearDown()
     }
