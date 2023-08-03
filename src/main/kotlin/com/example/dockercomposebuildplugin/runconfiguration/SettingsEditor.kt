@@ -29,15 +29,15 @@ open class DockerComposeBuildSettingsEditor(project: Project) : SettingsEditor<D
     protected val dockerComposeFileField = TextFieldWithBrowseButton()
 
     private val myOptions: Options = Options()
-        .addOption("build_arg", true, "Set build-time variables for services")
-        .addOption("compress", false, "Compress the build context using gzip")
-        .addOption("force_rm", false, "Always remove intermediate containers")
+        .addOption(null,"build_arg", true, "Set build-time variables for services")
+        .addOption(null,"compress", false, "Compress the build context using gzip")
+        .addOption(null,"force_rm", false, "Always remove intermediate containers")
         .addOption("m", "memory", true, "Set memory limit for the build container")
-        .addOption("no_cache", false, "Do not use cache when building the image")
-        .addOption("no_rm", false, "Do not remove intermediate containers after a successful build")
-        .addOption("parallel", false, "Build images in parallel")
-        .addOption("progress", true, "Set type of progress output (auto, plain, tty)")
-        .addOption("pull", false, "Always attempt to pull a newer version of the image")
+        .addOption(null, "no_cache", false, "Do not use cache when building the image")
+        .addOption(null, "no_rm", false, "Do not remove intermediate containers after a successful build")
+        .addOption(null,"parallel", false, "Build images in parallel")
+        .addOption(null,"progress", true, "Set type of progress output (auto, plain, tty)")
+        .addOption(null,"pull", false, "Always attempt to pull a newer version of the image")
         .addOption("q", "quiet", false, "Don't print anything to STDOUT")
 
     init {
