@@ -1,9 +1,6 @@
 package com.example.dockercomposebuildplugin
 
-import org.junit.Test
-
 class FileAutoFindingTest : BaseDockerComposeTestCase() {
-    @Test
     fun `test Docker Compose file auto-finding`() {
         val dockerComposeFile = createAndRefreshFile("docker-compose.yml")
 
@@ -13,7 +10,6 @@ class FileAutoFindingTest : BaseDockerComposeTestCase() {
         assertEquals(dockerComposeFile.absolutePath, editor.getDockerComposeFileFieldText())
     }
 
-    @Test
     fun `test Docker Compose file auto-finding with yaml extension`() {
         val dockerComposeFile = createAndRefreshFile("docker-compose.yaml")
 
@@ -23,7 +19,6 @@ class FileAutoFindingTest : BaseDockerComposeTestCase() {
         assertEquals(dockerComposeFile.absolutePath, editor.getDockerComposeFileFieldText())
     }
 
-    @Test
     fun `test non Docker Compose yml file is selected`() {
         // Create a yml file with a different name in the project directory
         createAndRefreshFile("not-docker-compose.yml")
@@ -34,7 +29,6 @@ class FileAutoFindingTest : BaseDockerComposeTestCase() {
         assertEquals("", editor.getDockerComposeFileFieldText())
     }
 
-    @Test
     fun `test search process stops at first docker-compose file encountered`() {
         // Create a Docker Compose runConfiguration file in the project directory and the subdirectory
         val firstFile = createAndRefreshFile("docker-compose.yml")
@@ -47,7 +41,6 @@ class FileAutoFindingTest : BaseDockerComposeTestCase() {
         assertEquals(firstFile.absolutePath, editor.getDockerComposeFileFieldText())
     }
 
-    @Test
     fun `test Docker Compose empty project`() {
         editor.resetEditorFrom(runConfiguration)
 
@@ -55,7 +48,6 @@ class FileAutoFindingTest : BaseDockerComposeTestCase() {
         assertEquals("", editor.getDockerComposeFileFieldText())
     }
 
-    @Test
     fun `test Docker Compose in subdirectory if none in root`() {
         val subDir = createAndRefreshDirectory("subdir")
         val subDirFile = createAndRefreshFile("docker-compose.yml", subDir)

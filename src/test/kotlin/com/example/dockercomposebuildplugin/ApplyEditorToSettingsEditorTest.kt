@@ -37,7 +37,6 @@ class DockerComposeApplyEditorToSettingsEditorTest : BaseDockerComposeTestCase()
         super.tearDown()
     }
 
-    @Test
     fun `test applyEditorTo when all fields are valid`() {
         editor.setDockerPathFieldText(dockerComposePath.toString())
         editor.setDockerComposeFileFieldText(dockerComposeConfigPath.toString())
@@ -50,7 +49,6 @@ class DockerComposeApplyEditorToSettingsEditorTest : BaseDockerComposeTestCase()
         assertEquals("-m 4 -no_cache", runConfiguration.commandArgs)
     }
 
-    @Test
     fun `test applyEditorTo`() {
         editor.setDockerPathFieldText(dockerComposePath.toString())
         editor.setDockerComposeFileFieldText(dockerComposeConfigPath.toString())
@@ -64,7 +62,6 @@ class DockerComposeApplyEditorToSettingsEditorTest : BaseDockerComposeTestCase()
         }
     }
 
-    @Test
     fun `test applyEditorTo when Docker Compose path is invalid`() {
         editor.setDockerPathFieldText("invalid path")
 
@@ -79,7 +76,6 @@ class DockerComposeApplyEditorToSettingsEditorTest : BaseDockerComposeTestCase()
         }
     }
 
-    @Test
     fun `test applyEditorTo when Docker Compose file path is invalid`() {
         editor.setDockerComposeFileFieldText("invalid path")
 
@@ -95,7 +91,6 @@ class DockerComposeApplyEditorToSettingsEditorTest : BaseDockerComposeTestCase()
         }
     }
 
-    @Test
     fun `test applyEditorTo when Docker Compose arguments are invalid`() {
         // Set the Docker Compose arguments to an invalid argument
         editor.setCommandArgsFieldText("-invalid")
@@ -112,7 +107,6 @@ class DockerComposeApplyEditorToSettingsEditorTest : BaseDockerComposeTestCase()
         }
     }
 
-    @Test
     fun `test applyEditorTo when Docker Compose argument is used more than once`() {
         // Set the Docker Compose arguments to use the same argument twice
         editor.setCommandArgsFieldText("-m 4 -m 4")
