@@ -2,7 +2,6 @@ package com.example.dockercomposebuildplugin
 
 import com.intellij.openapi.options.ConfigurationException
 import com.intellij.openapi.vfs.LocalFileSystem
-import org.junit.Test
 import java.nio.file.Files
 import java.nio.file.Path
 import java.nio.file.attribute.PosixFilePermission
