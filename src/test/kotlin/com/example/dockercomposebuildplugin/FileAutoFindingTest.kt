@@ -1,7 +1,6 @@
 package com.example.dockercomposebuildplugin
 
 import findAllDockerComposeFiles
-import junit.framework.TestCase
 
 class FileAutoFindingTest : BaseDockerComposeTestCase() {
     fun `test Docker Compose file auto-finding`() {
@@ -24,7 +23,7 @@ class FileAutoFindingTest : BaseDockerComposeTestCase() {
 
     fun `test non Docker Compose yml file is selected`() {
         // Create a yml file with a different name in the project directory
-        createAndRefreshFile("not-docker-compose.yml")
+        createAndRefreshFile("config.yml")
 
         editor.resetEditorFrom(runConfiguration)
 
@@ -61,7 +60,7 @@ class FileAutoFindingTest : BaseDockerComposeTestCase() {
         val resultFile = findAllDockerComposeFiles(project)
 
         // Assert
-        TestCase.assertNull(resultFile)
+        assertEmpty(resultFile)
     }
 }
 

@@ -1,7 +1,6 @@
 package com.example.dockercomposebuildplugin
 
 import DockerComposeBuildRunConfiguration
-import DockerComposeBuildSettingsEditor
 import com.example.dockercomposebuildplugin.runconfiguration.DockerComposeBuildConfigurationFactory
 import com.example.dockercomposebuildplugin.runconfiguration.DockerComposeBuildRunConfigurationType
 import com.intellij.openapi.vfs.LocalFileSystem
@@ -13,7 +12,7 @@ import java.nio.file.Files
 
 abstract class BaseDockerComposeTestCase : BasePlatformTestCase() {
     protected lateinit var runConfiguration: DockerComposeBuildRunConfiguration
-    protected lateinit var editor: DockerComposeBuildSettingsEditor
+    protected lateinit var editor: TestableSettingsEditor
     protected var projectDir: File? = null
 
     private val filesToCleanUp = mutableListOf<File>()
@@ -36,14 +35,18 @@ abstract class BaseDockerComposeTestCase : BasePlatformTestCase() {
             "DockerComposeBuild",
         )
 
-        editor = DockerComposeBuildSettingsEditor(project)
+        editor = TestableSettingsEditor(project)
     }
 
     @After
     @Throws(Exception::class)
     public override fun tearDown() {
-        // Clean up the files
-        filesToCleanUp.forEach { it.delete() }
+        // Delete files first
+        filesToCleanUp.filter { it.isFile }.forEach { it.delete() }
+
+        // Delete directories next, in reverse order of creation
+        filesToCleanUp.filter { it.isDirectory }.reversed().forEach { it.delete() }
+
         filesToCleanUp.clear()
 
         projectDir?.let {

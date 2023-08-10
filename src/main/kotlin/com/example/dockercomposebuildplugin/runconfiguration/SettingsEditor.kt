@@ -120,14 +120,12 @@ open class DockerComposeBuildSettingsEditor(project: Project) : SettingsEditor<D
         dockerPathField.text = dockerPath!!
         commandArgsField.text = runConfiguration.commandArgs ?: ""
 
-        val indicator = EmptyProgressIndicator()
         if (runConfiguration.dockerComposeFiles.isEmpty()) {
-            findAllDockerComposeFilesAsync(myDisposable, runConfiguration.project, indicator) { dockerComposeFiles ->
-                dockerComposeFilesList.clear()
-                dockerComposeFiles.forEach { dockerComposeFilesList.addElement(it.path) }
+            loadDockerComposeFiles(runConfiguration.project) { dockerComposeFiles ->
+                updateDockerComposeFilesList(dockerComposeFiles.map { it.path })
             }
         } else {
-            runConfiguration.dockerComposeFiles.forEach { dockerComposeFilesList.addElement(it) }
+            updateDockerComposeFilesList(runConfiguration.dockerComposeFiles)
         }
     }
 
@@ -176,6 +174,16 @@ open class DockerComposeBuildSettingsEditor(project: Project) : SettingsEditor<D
             runConfiguration.dockerComposeFiles = dockerComposeFilesList.elements().toList()
         }
         runConfiguration.commandArgs = commandArgsField.text
+    }
+
+    open fun updateDockerComposeFilesList(dockerComposeFiles: List<String>) {
+        dockerComposeFilesList.clear()
+        dockerComposeFiles.forEach { dockerComposeFilesList.addElement(it) }
+    }
+
+    open fun loadDockerComposeFiles(runConfigurationProject: Project, action: (List<VirtualFile>) -> Unit) {
+        val indicator = EmptyProgressIndicator()
+        findAllDockerComposeFilesAsync(myDisposable, runConfigurationProject, indicator, action)
     }
 
     @VisibleForTesting
