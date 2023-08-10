@@ -5,7 +5,10 @@ import com.example.dockercomposebuildplugin.runconfiguration.DockerComposeBuildC
 import com.example.dockercomposebuildplugin.runconfiguration.DockerComposeBuildRunConfigurationType
 import com.intellij.openapi.vfs.LocalFileSystem
 import com.intellij.testFramework.fixtures.BasePlatformTestCase
+import org.junit.After
+import org.junit.Before
 import java.io.File
+import java.nio.file.Files
 
 abstract class BaseDockerComposeTestCase : BasePlatformTestCase() {
     protected lateinit var runConfiguration: DockerComposeBuildRunConfiguration
@@ -14,9 +17,17 @@ abstract class BaseDockerComposeTestCase : BasePlatformTestCase() {
 
     private val filesToCleanUp = mutableListOf<File>()
 
+    @Before
     @Throws(Exception::class)
-    override fun setUp() {
+    public override fun setUp() {
         super.setUp()
+
+        projectDir = project.basePath?.let { File(it) }
+        checkNotNull(projectDir) { "Project directory should not be null" }
+
+        if (!projectDir!!.exists()) {
+            projectDir!!.mkdir()
+        }
 
         runConfiguration = DockerComposeBuildRunConfiguration(
             project,
@@ -25,17 +36,11 @@ abstract class BaseDockerComposeTestCase : BasePlatformTestCase() {
         )
 
         editor = TestableSettingsEditor(project)
-
-        projectDir = project.basePath?.let { File(it) }
-        checkNotNull(projectDir) { "Project directory should not be null" }
-
-        if (!projectDir!!.exists()) {
-            projectDir!!.mkdir()
-        }
     }
 
+    @After
     @Throws(Exception::class)
-    override fun tearDown() {
+    public override fun tearDown() {
         // Clean up the files
         filesToCleanUp.forEach { it.delete() }
         filesToCleanUp.clear()
@@ -47,7 +52,6 @@ abstract class BaseDockerComposeTestCase : BasePlatformTestCase() {
         }
 
         LocalFileSystem.getInstance().refresh(false)
-
         super.tearDown()
     }
 
@@ -61,6 +65,21 @@ abstract class BaseDockerComposeTestCase : BasePlatformTestCase() {
 
         return file
     }
+
+    protected fun createAndRefreshSymbolicLink(filename: String, target: File, directory: File = projectDir!!): File {
+        val linkPath = directory.toPath().resolve(filename)
+        val targetPath = target.toPath()
+
+        // Create the symbolic link
+        Files.createSymbolicLink(linkPath, targetPath)
+
+        // Refresh info about file existence
+        LocalFileSystem.getInstance().refreshAndFindFileByIoFile(linkPath.toFile())?.refresh(false, false)
+        filesToCleanUp.add(linkPath.toFile())
+
+        return linkPath.toFile()
+    }
+
 
     protected fun createAndRefreshDirectory(dirname: String): File {
         val dir = File(projectDir!!, dirname)

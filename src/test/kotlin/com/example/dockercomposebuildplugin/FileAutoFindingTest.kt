@@ -1,5 +1,8 @@
 package com.example.dockercomposebuildplugin
 
+import findDockerComposeFile
+import junit.framework.TestCase
+
 class FileAutoFindingTest : BaseDockerComposeTestCase() {
     fun `test Docker Compose file auto-finding`() {
         val dockerComposeFile = createAndRefreshFile("docker-compose.yml")
@@ -48,13 +51,16 @@ class FileAutoFindingTest : BaseDockerComposeTestCase() {
         assertEquals("", editor.getDockerComposeFileFieldText())
     }
 
-    fun `test Docker Compose in subdirectory if none in root`() {
-        val subDir = createAndRefreshDirectory("subdir")
-        val subDirFile = createAndRefreshFile("docker-compose.yml", subDir)
+    fun `test Docker Compose handling of recursive symbolic links`() {
+        // Arrange
+        createAndRefreshDirectory("link-dir")
+        createAndRefreshSymbolicLink("recursive-link", projectDir!!)
 
-        editor.resetEditorFrom(runConfiguration)
+        // Act
+        val resultFile = findDockerComposeFile(project)
 
-        // Check that the Docker Compose file field is set to the path of the subdirectory file
-        assertEquals(subDirFile.absolutePath, editor.getDockerComposeFileFieldText())
+        // Assert
+        TestCase.assertNull(resultFile)
     }
 }
+

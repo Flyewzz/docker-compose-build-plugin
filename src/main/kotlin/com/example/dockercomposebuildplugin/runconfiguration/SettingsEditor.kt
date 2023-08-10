@@ -1,4 +1,7 @@
 import com.intellij.codeInsight.completion.CompletionResultSet
+import com.intellij.openapi.Disposable
+import com.intellij.openapi.application.ModalityState
+import com.intellij.openapi.application.ReadAction
 import com.intellij.openapi.externalSystem.service.execution.cmd.CommandLineCompletionProvider
 import com.intellij.openapi.fileChooser.FileChooserDescriptorFactory
 import com.intellij.openapi.options.ConfigurationException
@@ -15,14 +18,23 @@ import java.io.File
 import javax.swing.JComponent
 import javax.swing.JPanel
 import com.intellij.openapi.fileChooser.FileChooserDescriptor
+import com.intellij.openapi.progress.EmptyProgressIndicator
+import com.intellij.openapi.progress.ProgressIndicator
 import com.intellij.openapi.ui.TextBrowseFolderListener
+import com.intellij.openapi.util.Disposer
+import com.intellij.openapi.vfs.LocalFileSystem
 import com.intellij.openapi.vfs.VirtualFile
+import com.intellij.util.concurrency.AppExecutorUtil
 import org.apache.commons.cli.Option
 import org.jetbrains.annotations.VisibleForTesting
+import java.nio.file.Files
+import java.nio.file.Path
+import java.nio.file.Paths
 
 
 open class DockerComposeBuildSettingsEditor(project: Project) : SettingsEditor<DockerComposeBuildRunConfiguration?>() {
     private val myPanel: JPanel
+    private val myDisposable = Disposer.newDisposable()
 
     protected var dockerPathField: TextFieldWithBrowseButton = TextFieldWithBrowseButton()
     protected val commandArgsField: TextFieldWithCompletion
@@ -73,14 +85,16 @@ open class DockerComposeBuildSettingsEditor(project: Project) : SettingsEditor<D
             runConfiguration.dockerPath = defaultPath
         }
 
-        val dockerComposeFile = findDockerComposeFile(runConfiguration.project)
-        if (dockerComposeFile != null) {
-            runConfiguration.dockerComposeFilePath = dockerComposeFile.path
-        }
+        val indicator = EmptyProgressIndicator()
+        findDockerComposeFileAsync(myDisposable, runConfiguration.project, indicator) { dockerComposeFile ->
+            if (dockerComposeFile != null) {
+                runConfiguration.dockerComposeFilePath = dockerComposeFile.path
+            }
 
-        dockerPathField.text = runConfiguration.dockerPath ?: defaultPath
-        dockerComposeFileField.text = runConfiguration.dockerComposeFilePath ?: ""
-        commandArgsField.text = runConfiguration.commandArgs ?: ""
+            dockerPathField.text = runConfiguration.dockerPath ?: defaultPath
+            dockerComposeFileField.text = runConfiguration.dockerComposeFilePath ?: ""
+            commandArgsField.text = runConfiguration.commandArgs ?: ""
+        }
     }
 
     @VisibleForTesting
@@ -129,33 +143,58 @@ open class DockerComposeBuildSettingsEditor(project: Project) : SettingsEditor<D
     override fun createEditor(): JComponent {
         return myPanel
     }
+
+    override fun disposeEditor() {
+        Disposer.dispose(myDisposable)
+    }
+
 }
 
 class DockerComposeCompletionProvider(options: Options?) : CommandLineCompletionProvider(options) {
     override fun addArgumentVariants(result: CompletionResultSet) {}
 }
 
-private fun findDockerComposeFile(project: Project): VirtualFile? {
-    val projectDir = project.baseDir ?: return null
+fun findDockerComposeFile(project: Project): VirtualFile? {
+    val basePath = project.basePath ?: return null
+    val projectDir = LocalFileSystem.getInstance().refreshAndFindFileByNioFile(Paths.get(basePath)) ?: return null
 
-    // Prepare a queue for directories to check
     val directoriesToCheck = ArrayDeque<VirtualFile>()
+    val visitedPaths = HashSet<Path>()
     directoriesToCheck.addFirst(projectDir)
 
-    // Check directories one by one, from root to subdirectories
     while (directoriesToCheck.isNotEmpty()) {
         val directory = directoriesToCheck.removeFirst()
+        val path = Paths.get(directory.path)
+
+        if (Files.isSymbolicLink(path)) {
+            val targetPath = Files.readSymbolicLink(path)
+            if (!visitedPaths.add(targetPath)) continue
+        } else {
+            if (!visitedPaths.add(path)) continue
+        }
+
         val dockerComposeFile = directory.children.find {
             it.extension in listOf("yml", "yaml") && it.nameWithoutExtension == "docker-compose"
         }
+
         if (dockerComposeFile != null) {
             return dockerComposeFile
         } else {
-            // If not found, add all subdirectories to the queue
             directoriesToCheck.addAll(directory.children.filter { it.isDirectory })
         }
     }
 
-    // if no docker-compose file was found
+    // No docker-compose file was found
     return null
+}
+
+fun findDockerComposeFileAsync(
+    disposable: Disposable, project: Project, indicator: ProgressIndicator, callback: (VirtualFile?) -> Unit) {
+    ReadAction.nonBlocking<VirtualFile?> {
+        findDockerComposeFile(project)
+    }
+        .expireWith(disposable)
+        .wrapProgress(indicator)
+        .finishOnUiThread(ModalityState.any()) { result -> callback(result) }
+        .submit(AppExecutorUtil.getAppExecutorService())
 }

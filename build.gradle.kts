@@ -45,3 +45,7 @@ tasks {
         token.set(System.getenv("PUBLISH_TOKEN"))
     }
 }
+
+dependencies {
+    testImplementation("junit:junit:4.13.2")
+}
