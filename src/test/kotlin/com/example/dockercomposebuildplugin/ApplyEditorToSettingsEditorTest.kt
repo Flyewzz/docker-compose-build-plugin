@@ -26,19 +26,6 @@ class DockerComposeApplyEditorToSettingsEditorTest : BaseDockerComposeTestCase()
         )
     }
 
-    @Throws(Exception::class)
-    override fun tearDown() {
-        projectDir?.let {
-            if (it.exists()) {
-                it.delete()
-            }
-        }
-
-        LocalFileSystem.getInstance().refresh(false)
-
-        super.tearDown()
-    }
-
     fun `test applyEditorTo when all fields are valid`() {
         editor.setDockerPathFieldText(dockerComposePath.toString())
         editor.setDockerComposeFilesList(dockerComposeConfigPaths.map { it.toString() })
@@ -141,6 +128,21 @@ class DockerComposeApplyEditorToSettingsEditorTest : BaseDockerComposeTestCase()
             fail("Expected an exception to be thrown")
         } catch (e: ConfigurationException) {
             assertEquals("-m option cannot be used more than once", e.message)
+        }
+    }
+
+    fun `test applyEditorTo when no docker compose config files specified`() {
+        // Set other fields to valid values
+        editor.setDockerPathFieldText(dockerComposePath.toString())
+        editor.setDockerComposeFilesList(emptyList())
+        // Set the Docker Compose arguments to use the same argument twice
+        editor.setCommandArgsFieldText("-m 4")
+
+        try {
+            editor.applyEditorTo(runConfiguration)
+            fail("Expected an exception to be thrown")
+        } catch (e: ConfigurationException) {
+            assertEquals("No Docker Compose config files specified", e.message)
         }
     }
 }

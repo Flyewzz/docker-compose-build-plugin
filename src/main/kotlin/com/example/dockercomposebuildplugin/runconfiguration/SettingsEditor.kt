@@ -19,7 +19,6 @@ import java.io.File
 import com.intellij.openapi.fileChooser.FileChooserDescriptor
 import com.intellij.openapi.progress.EmptyProgressIndicator
 import com.intellij.openapi.progress.ProgressIndicator
-import com.intellij.openapi.ui.TextBrowseFolderListener
 import com.intellij.openapi.util.Disposer
 import com.intellij.openapi.vfs.LocalFileSystem
 import com.intellij.openapi.vfs.VirtualFile
@@ -29,7 +28,6 @@ import org.apache.commons.cli.Option
 import org.jetbrains.annotations.VisibleForTesting
 import java.awt.BorderLayout
 import java.awt.GridLayout
-import java.nio.file.Files
 import java.nio.file.Path
 import java.nio.file.Paths
 import javax.swing.*
@@ -137,9 +135,12 @@ open class DockerComposeBuildSettingsEditor(project: Project) : SettingsEditor<D
             throw ConfigurationException("Invalid Docker Compose path")
         }
 
-        val invalidDockerComposeFilePaths = dockerComposeFilesList.elements()
-            .toList()
-            .filter { !File(it).exists() }
+        val dockerComposeElemFilesList = dockerComposeFilesList.elements().toList()
+        if (dockerComposeElemFilesList.isEmpty()) {
+            throw ConfigurationException("No Docker Compose config files specified")
+        }
+
+        val invalidDockerComposeFilePaths = dockerComposeElemFilesList.filter { !File(it).exists() }
         if (invalidDockerComposeFilePaths.isNotEmpty()) {
             throw ConfigurationException("Invalid Docker Compose config paths")
         }
@@ -186,8 +187,7 @@ open class DockerComposeBuildSettingsEditor(project: Project) : SettingsEditor<D
         findAllDockerComposeFilesAsync(myDisposable, runConfigurationProject, indicator, action)
     }
 
-    @VisibleForTesting
-    fun addFilesToDockerComposeFilesList(files: List<VirtualFile>): Boolean {
+    private fun addFilesToDockerComposeFilesList(files: List<VirtualFile>): Boolean {
         var duplicateFilesFound = false
         files.forEach { file ->
             val path = file.path

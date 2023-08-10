@@ -52,6 +52,12 @@ class FileAutoFindingTest : BaseDockerComposeTestCase() {
     }
 
     fun `test Docker Compose handling of recursive symbolic links`() {
+        val osName = System.getProperty("os.name").lowercase()
+        // Skip the test if running on Windows
+        if (osName.contains("mac") || osName.contains("nux")) {
+            return
+        }
+
         // Arrange
         createAndRefreshDirectory("link-dir")
         createAndRefreshSymbolicLink("recursive-link", projectDir!!)
@@ -63,4 +69,3 @@ class FileAutoFindingTest : BaseDockerComposeTestCase() {
         assertEmpty(resultFile)
     }
 }
-
