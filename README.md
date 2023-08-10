@@ -9,9 +9,13 @@ This plugin allows you to easily build Docker Compose projects directly from you
 - Autocomplete for `docker-compose build` arguments.
 - Validation of Docker Compose paths and arguments.
 - Specify the path to the `docker-compose.yml` file.
+- Ability to manage multiple Docker Compose configuration files.
+- Validation of non-duplicate and existing Docker Compose files.
 - Simple and user-friendly UI.
 - Auto-complete docker-compose files from the project directory and subfolders.
 - Validates commands to ensure that options that can only occur once are only met once.
+- Easy navigation to add or remove Docker Compose files from the list.
+- Alerts the user for duplicate files while adding them to the list.
 
 ## Getting Started
 
@@ -19,6 +23,7 @@ This plugin allows you to easily build Docker Compose projects directly from you
 
 - [IntelliJ IDEA Community Edition](https://www.jetbrains.com/idea/download/ce/)
 - [Kotlin Plugin for IntelliJ IDEA](https://plugins.jetbrains.com/plugin/6954-kotlin)
+- [Docker Compose](https://docs.docker.com/compose/install/) installed on your system.
 
 ### Installation
 
@@ -32,7 +37,8 @@ This plugin allows you to easily build Docker Compose projects directly from you
 1. Once installed, go to `Run` > `Edit Configurations`.
 2. Click on the `+` button and select `Docker Compose Build`.
 3. Enter your Docker Compose path and any arguments you want to use.
-4. Click `OK` and you're ready to go!
+4. Add or remove Docker Compose configuration files as needed.
+5. Click `OK` and you're ready to go!
 
 ## Contributing
 
