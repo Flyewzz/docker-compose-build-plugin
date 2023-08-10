@@ -26,11 +26,12 @@ class DockerComposeBuildRunConfiguration(
             options.dockerPath = dockerPath
         }
 
-    var dockerComposeFilePath: String?
-        get() = options.dockerComposeFilePath
+    var dockerComposeFiles: List<String>
+        get() = options.dockerComposeFiles
         set(value) {
-            options.dockerComposeFilePath = value
+            options.dockerComposeFiles = value
         }
+
 
     var commandArgs: String?
         get() = options.commandArgs
@@ -57,8 +58,11 @@ class DockerComposeBuildRunConfiguration(
 
                 val command = mutableListOf(dockerPath)
 
-                command.add("-f")
-                command.add(options.dockerComposeFilePath!!)
+                val dockerComposeFiles = options.dockerComposeFiles
+                dockerComposeFiles.forEach { filePath ->
+                    command.add("-f")
+                    command.add(filePath)
+                }
 
                 command.add("build")
                 val args = options.commandArgs

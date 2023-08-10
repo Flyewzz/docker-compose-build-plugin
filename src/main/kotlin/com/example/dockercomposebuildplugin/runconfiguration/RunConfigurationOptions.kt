@@ -4,7 +4,7 @@ import com.intellij.openapi.components.StoredProperty
 class DockerComposeBuildRunConfigurationOptions : RunConfigurationOptions() {
 
     private val myDockerPath: StoredProperty<String?> = string("").provideDelegate(this, "dockerPath")
-    private val myDockerComposeFilePath: StoredProperty<String?> = string("").provideDelegate(this, "dockerComposeFilePath")
+    private val myDockerComposeFiles: StoredProperty<String?> = string("").provideDelegate(this, "dockerComposeFiles")
     private val myCommandArgs: StoredProperty<String?> = string("").provideDelegate(this, "commandArgs")
 
     var dockerPath: String?
@@ -13,11 +13,15 @@ class DockerComposeBuildRunConfigurationOptions : RunConfigurationOptions() {
             myDockerPath.setValue(this, dockerPath)
         }
 
-    var dockerComposeFilePath: String?
-        get() = myDockerComposeFilePath.getValue(this)
-        set(dockerComposeFilePath) {
-            myDockerComposeFilePath.setValue(this, dockerComposeFilePath)
+    var dockerComposeFiles: List<String>
+        get() {
+            val files = myDockerComposeFiles.getValue(this)
+            return if (files?.isNotBlank() == true) files.split(";") else emptyList()
         }
+        set(value) {
+            myDockerComposeFiles.setValue(this, value.joinToString(";"))
+        }
+
 
     var commandArgs: String?
         get() = myCommandArgs.getValue(this)

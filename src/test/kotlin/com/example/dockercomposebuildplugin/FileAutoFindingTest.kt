@@ -1,6 +1,6 @@
 package com.example.dockercomposebuildplugin
 
-import findDockerComposeFile
+import findAllDockerComposeFiles
 import junit.framework.TestCase
 
 class FileAutoFindingTest : BaseDockerComposeTestCase() {
@@ -10,7 +10,7 @@ class FileAutoFindingTest : BaseDockerComposeTestCase() {
         editor.resetEditorFrom(runConfiguration)
 
         // Check that the Docker Compose file field is set to the path of the created file
-        assertEquals(dockerComposeFile.absolutePath, editor.getDockerComposeFileFieldText())
+        assertTrue(editor.getDockerComposeFilesList().contains(dockerComposeFile.absolutePath))
     }
 
     fun `test Docker Compose file auto-finding with yaml extension`() {
@@ -19,7 +19,7 @@ class FileAutoFindingTest : BaseDockerComposeTestCase() {
         editor.resetEditorFrom(runConfiguration)
 
         // Check that the Docker Compose file field is set to the path of the created file
-        assertEquals(dockerComposeFile.absolutePath, editor.getDockerComposeFileFieldText())
+        assertTrue(editor.getDockerComposeFilesList().contains(dockerComposeFile.absolutePath))
     }
 
     fun `test non Docker Compose yml file is selected`() {
@@ -29,26 +29,27 @@ class FileAutoFindingTest : BaseDockerComposeTestCase() {
         editor.resetEditorFrom(runConfiguration)
 
         // Check that the Docker Compose file field is empty
-        assertEquals("", editor.getDockerComposeFileFieldText())
+        assertEmpty(editor.getDockerComposeFilesList())
     }
 
-    fun `test search process stops at first docker-compose file encountered`() {
+    fun `test search process of docker-compose config files in subdirectories`() {
         // Create a Docker Compose runConfiguration file in the project directory and the subdirectory
         val firstFile = createAndRefreshFile("docker-compose.yml")
         val subDir = createAndRefreshDirectory("sub-dir")
-        createAndRefreshFile("docker-compose.yml", subDir)
+        var secondFile = createAndRefreshFile("docker-compose2.yml", subDir)
+        createAndRefreshFile("docker-invalid.yml", subDir)
 
         editor.resetEditorFrom(runConfiguration)
 
-        // Check that the Docker Compose file field is set to the path of the first file
-        assertEquals(firstFile.absolutePath, editor.getDockerComposeFileFieldText())
+        // Check that the Docker Compose config files field is set to the path of the first file
+        assertEquals(listOf(firstFile.absolutePath, secondFile.absolutePath), editor.getDockerComposeFilesList())
     }
 
     fun `test Docker Compose empty project`() {
         editor.resetEditorFrom(runConfiguration)
 
-        // Check that the Docker Compose file field is empty
-        assertEquals("", editor.getDockerComposeFileFieldText())
+        // Check that the Docker Compose config files field is empty
+        assertEmpty(editor.getDockerComposeFilesList())
     }
 
     fun `test Docker Compose handling of recursive symbolic links`() {
@@ -57,7 +58,7 @@ class FileAutoFindingTest : BaseDockerComposeTestCase() {
         createAndRefreshSymbolicLink("recursive-link", projectDir!!)
 
         // Act
-        val resultFile = findDockerComposeFile(project)
+        val resultFile = findAllDockerComposeFiles(project)
 
         // Assert
         TestCase.assertNull(resultFile)

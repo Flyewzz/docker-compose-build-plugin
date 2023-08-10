@@ -1,6 +1,7 @@
 package com.example.dockercomposebuildplugin
 
 import DockerComposeBuildRunConfiguration
+import DockerComposeBuildSettingsEditor
 import com.example.dockercomposebuildplugin.runconfiguration.DockerComposeBuildConfigurationFactory
 import com.example.dockercomposebuildplugin.runconfiguration.DockerComposeBuildRunConfigurationType
 import com.intellij.openapi.vfs.LocalFileSystem
@@ -12,7 +13,7 @@ import java.nio.file.Files
 
 abstract class BaseDockerComposeTestCase : BasePlatformTestCase() {
     protected lateinit var runConfiguration: DockerComposeBuildRunConfiguration
-    protected lateinit var editor: TestableSettingsEditor
+    protected lateinit var editor: DockerComposeBuildSettingsEditor
     protected var projectDir: File? = null
 
     private val filesToCleanUp = mutableListOf<File>()
@@ -35,7 +36,7 @@ abstract class BaseDockerComposeTestCase : BasePlatformTestCase() {
             "DockerComposeBuild",
         )
 
-        editor = TestableSettingsEditor(project)
+        editor = DockerComposeBuildSettingsEditor(project)
     }
 
     @After

@@ -9,7 +9,7 @@ import java.nio.file.attribute.PosixFilePermission
 
 class DockerComposeApplyEditorToSettingsEditorTest : BaseDockerComposeTestCase() {
     private lateinit var dockerComposePath: Path
-    private lateinit var dockerComposeConfigPath: Path
+    private lateinit var dockerComposeConfigPaths: List<Path>
 
     @Throws(Exception::class)
     override fun setUp() {
@@ -20,7 +20,10 @@ class DockerComposeApplyEditorToSettingsEditorTest : BaseDockerComposeTestCase()
         Files.setPosixFilePermissions(dockerComposePath, setOf(PosixFilePermission.OWNER_EXECUTE))
 
         // Create real "file" for Docker Compose config path
-        dockerComposeConfigPath = createAndRefreshFile("docker-compose.yml").toPath()
+        dockerComposeConfigPaths = listOf(
+            createAndRefreshFile("docker-compose1.yml").toPath(),
+            createAndRefreshFile("docker-compose2.yml").toPath()
+        )
     }
 
     @Throws(Exception::class)
@@ -38,19 +41,19 @@ class DockerComposeApplyEditorToSettingsEditorTest : BaseDockerComposeTestCase()
 
     fun `test applyEditorTo when all fields are valid`() {
         editor.setDockerPathFieldText(dockerComposePath.toString())
-        editor.setDockerComposeFileFieldText(dockerComposeConfigPath.toString())
+        editor.setDockerComposeFilesList(dockerComposeConfigPaths.map { it.toString() })
         editor.setCommandArgsFieldText("-m 4 -no_cache")
 
         editor.applyEditorTo(runConfiguration)
 
         assertEquals(dockerComposePath.toString(), runConfiguration.dockerPath)
-        assertEquals(dockerComposeConfigPath.toString(), runConfiguration.dockerComposeFilePath)
+        assertEquals(dockerComposeConfigPaths.map { it.toString() }, runConfiguration.dockerComposeFiles)
         assertEquals("-m 4 -no_cache", runConfiguration.commandArgs)
     }
 
     fun `test applyEditorTo`() {
         editor.setDockerPathFieldText(dockerComposePath.toString())
-        editor.setDockerComposeFileFieldText(dockerComposeConfigPath.toString())
+        editor.setDockerComposeFilesList(dockerComposeConfigPaths.map { it.toString() })
         editor.setCommandArgsFieldText("-m 4 --memory 2")
 
         try {
@@ -63,8 +66,7 @@ class DockerComposeApplyEditorToSettingsEditorTest : BaseDockerComposeTestCase()
 
     fun `test applyEditorTo when Docker Compose path is invalid`() {
         editor.setDockerPathFieldText("invalid path")
-
-        editor.setDockerComposeFileFieldText(dockerComposeConfigPath.toString())
+        editor.setDockerComposeFilesList(dockerComposeConfigPaths.map { it.toString() })
         editor.setCommandArgsFieldText("-m 4")
 
         try {
@@ -75,8 +77,8 @@ class DockerComposeApplyEditorToSettingsEditorTest : BaseDockerComposeTestCase()
         }
     }
 
-    fun `test applyEditorTo when Docker Compose file path is invalid`() {
-        editor.setDockerComposeFileFieldText("invalid path")
+    fun `test applyEditorTo when Docker Compose config file path is invalid`() {
+        editor.setDockerComposeFilesList(listOf("invalid path"))
 
         // Set other fields to valid values
         editor.setDockerPathFieldText(dockerComposePath.toString())
@@ -86,7 +88,27 @@ class DockerComposeApplyEditorToSettingsEditorTest : BaseDockerComposeTestCase()
             editor.applyEditorTo(runConfiguration)
             fail("Expected an exception to be thrown")
         } catch (e: ConfigurationException) {
-            assertEquals("Invalid Docker Compose config path", e.message)
+            assertEquals("Invalid Docker Compose config paths", e.message)
+        }
+    }
+
+    fun `test applyEditorTo when some Docker Compose config file paths are invalid`() {
+        val validFilePath1 = createAndRefreshFile("docker-compose.yml").path
+        val invalidPath1 = "invalid/path1"
+        val validFilePath2 = createAndRefreshFile("docker-compose.yaml").path
+        val invalidPath2 = "invalid/path2"
+
+        editor.setDockerComposeFilesList(listOf(validFilePath1, validFilePath2, invalidPath1, invalidPath2))
+
+        // Set other fields to valid values
+        editor.setDockerPathFieldText(dockerComposePath.toString())
+        editor.setCommandArgsFieldText("-m 4")
+
+        try {
+            editor.applyEditorTo(runConfiguration)
+            fail("Expected an exception to be thrown")
+        } catch (e: ConfigurationException) {
+            assertEquals("Invalid Docker Compose config paths", e.message)
         }
     }
 
@@ -96,7 +118,7 @@ class DockerComposeApplyEditorToSettingsEditorTest : BaseDockerComposeTestCase()
 
         // Set other fields to valid values
         editor.setDockerPathFieldText(dockerComposePath.toString())
-        editor.setDockerComposeFileFieldText(dockerComposeConfigPath.toString())
+        editor.setDockerComposeFilesList(dockerComposeConfigPaths.map { it.toString() })
 
         try {
             editor.applyEditorTo(runConfiguration)
@@ -112,7 +134,7 @@ class DockerComposeApplyEditorToSettingsEditorTest : BaseDockerComposeTestCase()
 
         // Set other fields to valid values
         editor.setDockerPathFieldText(dockerComposePath.toString())
-        editor.setDockerComposeFileFieldText(dockerComposeConfigPath.toString())
+        editor.setDockerComposeFilesList(dockerComposeConfigPaths.map { it.toString() })
 
         try {
             editor.applyEditorTo(runConfiguration)
