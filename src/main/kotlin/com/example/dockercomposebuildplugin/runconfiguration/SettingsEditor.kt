@@ -1,7 +1,4 @@
 import com.intellij.codeInsight.completion.CompletionResultSet
-import com.intellij.openapi.Disposable
-import com.intellij.openapi.application.ModalityState
-import com.intellij.openapi.application.ReadAction
 import com.intellij.openapi.externalSystem.service.execution.cmd.CommandLineCompletionProvider
 import com.intellij.openapi.fileChooser.FileChooser
 import com.intellij.openapi.fileChooser.FileChooserDescriptorFactory
@@ -17,21 +14,96 @@ import org.apache.commons.cli.Options
 import org.apache.commons.cli.ParseException
 import java.io.File
 import com.intellij.openapi.fileChooser.FileChooserDescriptor
-import com.intellij.openapi.progress.EmptyProgressIndicator
 import com.intellij.openapi.progress.ProgressIndicator
+import com.intellij.openapi.progress.Task
 import com.intellij.openapi.util.Disposer
 import com.intellij.openapi.vfs.LocalFileSystem
 import com.intellij.openapi.vfs.VirtualFile
 import com.intellij.ui.components.JBList
-import com.intellij.util.concurrency.AppExecutorUtil
+import com.intellij.ui.components.JBScrollPane
 import org.apache.commons.cli.Option
 import org.jetbrains.annotations.VisibleForTesting
-import java.awt.BorderLayout
-import java.awt.GridLayout
+import java.awt.*
+import java.awt.event.ActionEvent
 import java.nio.file.Path
 import java.nio.file.Paths
 import javax.swing.*
 
+class DockerComposeFilesPanel(model: DefaultListModel<String>) : JPanel() {
+    internal val dockerComposeFilesListView = JBList(model)
+    private val loadingPanel = createLoadingPanel()
+    private var cancelLoading: (() -> Unit)? = null
+
+    private val addDockerComposeFileButton = JButton("Add")
+    private val removeDockerComposeFileButton = JButton("Remove")
+
+    init {
+        layout = CardLayout()
+        add(createListViewPanel(), "ListView")
+        add(loadingPanel, "LoadingView")
+    }
+
+    fun setLoadingState(loading: Boolean) {
+        val cardLayout = layout as CardLayout
+        if (loading) {
+            cardLayout.show(this, "LoadingView")
+        } else {
+            cardLayout.show(this, "ListView")
+        }
+    }
+
+    internal fun setCancelAction(cancelAction: (() -> Unit)?) {
+        cancelLoading = cancelAction
+    }
+
+    internal fun setAddAction(addAction: ((ActionEvent) -> Unit)) {
+        addDockerComposeFileButton.addActionListener(addAction)
+    }
+
+    internal fun setRemoveAction(removeAction: ((ActionEvent) -> Unit)) {
+        removeDockerComposeFileButton.addActionListener(removeAction)
+    }
+
+    private fun createLoadingPanel(): JPanel {
+        val loadingPanel = JPanel(BorderLayout())
+
+        val loadingLabel = JLabel("Loading...").apply {
+            horizontalAlignment = JLabel.CENTER
+            verticalAlignment = JLabel.CENTER
+        }
+
+        // Wrap the loading label in a JPanel and center it
+        val centerPanel = JPanel(GridBagLayout())
+        centerPanel.add(loadingLabel)
+
+        // Create a JBScrollPane to simulate the appearance of a list
+        val loadingScrollPane = JBScrollPane(centerPanel)
+
+        val cancelButton = JButton("Cancel").apply {
+            addActionListener {
+                cancelLoading?.invoke()
+            }
+        }
+
+        loadingPanel.add(loadingScrollPane, BorderLayout.CENTER)
+        loadingPanel.add(cancelButton, BorderLayout.SOUTH)
+
+        return loadingPanel
+    }
+
+    private fun createListViewPanel(): JPanel {
+        val listViewPanel = JPanel(BorderLayout())
+        listViewPanel.add(JScrollPane(dockerComposeFilesListView), BorderLayout.CENTER)
+
+        val buttonPanel = JPanel()
+        buttonPanel.layout = GridLayout(1, 2)
+        buttonPanel.add(addDockerComposeFileButton)
+        buttonPanel.add(removeDockerComposeFileButton)
+        listViewPanel.add(buttonPanel, BorderLayout.SOUTH)
+
+        return listViewPanel
+    }
+}
 
 open class DockerComposeBuildSettingsEditor(project: Project) : SettingsEditor<DockerComposeBuildRunConfiguration?>() {
     private val myPanel: JPanel
@@ -41,7 +113,7 @@ open class DockerComposeBuildSettingsEditor(project: Project) : SettingsEditor<D
     protected val commandArgsField: TextFieldWithCompletion
 
     protected val dockerComposeFilesList: DefaultListModel<String> = DefaultListModel()
-    protected val dockerComposeFilesListView: JBList<String> = JBList(dockerComposeFilesList)
+    protected val dockerComposeFilesListView = DockerComposeFilesPanel(dockerComposeFilesList)
     
     protected val addDockerComposeFileButton: JButton = JButton("Add")
     protected val removeDockerComposeFileButton: JButton = JButton("Remove")
@@ -64,32 +136,21 @@ open class DockerComposeBuildSettingsEditor(project: Project) : SettingsEditor<D
             FileChooserDescriptorFactory.createSingleFileDescriptor()
         )
 
-        removeDockerComposeFileButton.addActionListener {
-            val selectedIndices = dockerComposeFilesListView.selectedIndices
-            for (i in selectedIndices.reversed()) {
-                dockerComposeFilesList.removeElementAt(i)
-            }
-        }
+        dockerComposeFilesListView.preferredSize = Dimension(200, 150)
 
         val dockerComposeFilePanel = JPanel()
         dockerComposeFilePanel.layout = BorderLayout()
         dockerComposeFilePanel.add(JScrollPane(dockerComposeFilesListView), BorderLayout.CENTER)
 
-        val buttonPanel = JPanel()
-        buttonPanel.layout = GridLayout(1, 2)
-        buttonPanel.add(addDockerComposeFileButton)
-        buttonPanel.add(removeDockerComposeFileButton)
-        dockerComposeFilePanel.add(buttonPanel, BorderLayout.SOUTH)
-
         commandArgsField =
             TextFieldWithCompletion(project, DockerComposeCompletionProvider(myOptions), "", true, true, true)
         myPanel = FormBuilder.createFormBuilder()
             .addLabeledComponent("Docker Compose path", dockerPathField)
-            .addLabeledComponent("Docker Compose config files", dockerComposeFilePanel)
+            .addLabeledComponent("Docker Compose config files", dockerComposeFilesListView)
             .addLabeledComponent("Docker Compose arguments", commandArgsField)
             .panel
 
-        addDockerComposeFileButton.addActionListener {
+        dockerComposeFilesListView.setAddAction {
             val descriptor = FileChooserDescriptor(true, false, false, false, false, true).withFileFilter {
                 it.extension in listOf("yml", "yaml")
             }
@@ -97,6 +158,14 @@ open class DockerComposeBuildSettingsEditor(project: Project) : SettingsEditor<D
             // Add files and display a message if they are already in the list
             if (addFilesToDockerComposeFilesList(files)) {
                 JOptionPane.showMessageDialog(myPanel, "One or more selected files are already in the list.", "Duplicate Files", JOptionPane.WARNING_MESSAGE)
+            }
+        }
+
+        dockerComposeFilesListView.setRemoveAction {
+            val selectedIndices = dockerComposeFilesListView.dockerComposeFilesListView.selectedIndices
+            dockerComposeFilesListView.dockerComposeFilesListView.model
+            for (i in selectedIndices.reversed()) {
+                dockerComposeFilesList.removeElementAt(i)
             }
         }
     }
@@ -183,8 +252,19 @@ open class DockerComposeBuildSettingsEditor(project: Project) : SettingsEditor<D
     }
 
     open fun loadDockerComposeFiles(runConfigurationProject: Project, action: (List<VirtualFile>) -> Unit) {
-        val indicator = EmptyProgressIndicator()
-        findAllDockerComposeFilesAsync(myDisposable, runConfigurationProject, indicator, action)
+        object : Task.Backgroundable(runConfigurationProject, "Loading Docker Compose config files", true) {
+            override fun run(indicator: ProgressIndicator) {
+                dockerComposeFilesListView.setCancelAction { indicator.cancel() }
+                setLoadingState(true)
+
+                val files = findAllDockerComposeFiles(runConfigurationProject, indicator)
+                action(files)
+            }
+
+            override fun onFinished() {
+                setLoadingState(false)
+            }
+        }.queue()
     }
 
     private fun addFilesToDockerComposeFilesList(files: List<VirtualFile>): Boolean {
@@ -199,6 +279,14 @@ open class DockerComposeBuildSettingsEditor(project: Project) : SettingsEditor<D
         }
 
         return duplicateFilesFound
+    }
+
+    private fun setLoadingState(loading: Boolean) {
+        // If searching is active, buttons should be disabled and vice versa
+        addDockerComposeFileButton.isEnabled = !loading
+        removeDockerComposeFileButton.isEnabled = !loading
+
+        dockerComposeFilesListView.setLoadingState(loading)
     }
 
     @VisibleForTesting
@@ -236,7 +324,7 @@ class DockerComposeCompletionProvider(options: Options?) : CommandLineCompletion
     override fun addArgumentVariants(result: CompletionResultSet) {}
 }
 
-fun findAllDockerComposeFiles(project: Project): List<VirtualFile> {
+fun findAllDockerComposeFiles(project: Project, indicator: ProgressIndicator): List<VirtualFile> {
     val basePath = project.basePath ?: return emptyList()
     val projectDir = LocalFileSystem.getInstance().refreshAndFindFileByNioFile(Paths.get(basePath)) ?: return emptyList()
 
@@ -247,6 +335,10 @@ fun findAllDockerComposeFiles(project: Project): List<VirtualFile> {
     val dockerComposeFiles = mutableListOf<VirtualFile>()
 
     while (directoriesToCheck.isNotEmpty()) {
+        if (indicator.isCanceled) {
+            return emptyList()
+        }
+
         val directory = directoriesToCheck.removeFirst()
         // Resolves only the actual path, following symbolic links
         val path = Paths.get(directory.path).toRealPath()
@@ -262,15 +354,4 @@ fun findAllDockerComposeFiles(project: Project): List<VirtualFile> {
     }
 
     return dockerComposeFiles
-}
-
-fun findAllDockerComposeFilesAsync(
-    disposable: Disposable, project: Project, indicator: ProgressIndicator, callback: (List<VirtualFile>) -> Unit) {
-    ReadAction.nonBlocking<List<VirtualFile>> {
-        findAllDockerComposeFiles(project)
-    }
-        .expireWith(disposable)
-        .wrapProgress(indicator)
-        .finishOnUiThread(ModalityState.defaultModalityState()) { result -> callback(result) }
-        .submit(AppExecutorUtil.getAppExecutorService())
 }

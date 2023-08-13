@@ -1,5 +1,6 @@
 package com.example.dockercomposebuildplugin
 
+import com.intellij.openapi.progress.EmptyProgressIndicator
 import findAllDockerComposeFiles
 
 class FileAutoFindingTest : BaseDockerComposeTestCase() {
@@ -62,8 +63,10 @@ class FileAutoFindingTest : BaseDockerComposeTestCase() {
         createAndRefreshDirectory("link-dir")
         createAndRefreshSymbolicLink("recursive-link", projectDir!!)
 
+        val indicator = EmptyProgressIndicator()
+
         // Act
-        val resultFile = findAllDockerComposeFiles(project)
+        val resultFile = findAllDockerComposeFiles(project, indicator)
 
         // Assert
         assertEmpty(resultFile)
