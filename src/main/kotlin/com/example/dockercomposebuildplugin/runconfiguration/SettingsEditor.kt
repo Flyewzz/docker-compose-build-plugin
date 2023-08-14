@@ -1,36 +1,47 @@
+import com.example.dockercomposebuildplugin.runconfiguration.CancellableBackgroundableTask
 import com.intellij.codeInsight.completion.CompletionResultSet
+import com.intellij.openapi.Disposable
 import com.intellij.openapi.externalSystem.service.execution.cmd.CommandLineCompletionProvider
 import com.intellij.openapi.fileChooser.FileChooser
+import com.intellij.openapi.fileChooser.FileChooserDescriptor
 import com.intellij.openapi.fileChooser.FileChooserDescriptorFactory
 import com.intellij.openapi.options.ConfigurationException
 import com.intellij.openapi.options.SettingsEditor
+import com.intellij.openapi.progress.ProgressIndicator
 import com.intellij.openapi.project.Project
 import com.intellij.openapi.ui.TextFieldWithBrowseButton
 import com.intellij.openapi.util.SystemInfo
-import com.intellij.util.textCompletion.TextFieldWithCompletion
-import com.intellij.util.ui.FormBuilder
-import org.apache.commons.cli.DefaultParser
-import org.apache.commons.cli.Options
-import org.apache.commons.cli.ParseException
-import java.io.File
-import com.intellij.openapi.fileChooser.FileChooserDescriptor
-import com.intellij.openapi.progress.ProgressIndicator
-import com.intellij.openapi.progress.Task
-import com.intellij.openapi.util.Disposer
 import com.intellij.openapi.vfs.LocalFileSystem
 import com.intellij.openapi.vfs.VirtualFile
 import com.intellij.ui.components.JBList
 import com.intellij.ui.components.JBScrollPane
+import com.intellij.util.textCompletion.TextFieldWithCompletion
+import com.intellij.util.ui.FormBuilder
+import org.apache.commons.cli.DefaultParser
 import org.apache.commons.cli.Option
+import org.apache.commons.cli.Options
+import org.apache.commons.cli.ParseException
 import org.jetbrains.annotations.VisibleForTesting
 import java.awt.*
 import java.awt.event.ActionEvent
+import java.io.File
 import java.nio.file.Path
 import java.nio.file.Paths
 import javax.swing.*
 
 class DockerComposeFilesPanel(model: DefaultListModel<String>) : JPanel() {
-    internal val dockerComposeFilesListView = JBList(model)
+    private val filesListView = JBList(model)
+
+    private val loadingLabel = JLabel("Loading...").apply {
+        horizontalAlignment = JLabel.CENTER
+    }
+
+    private var loadingDotCount = 0
+    private val loadingTimer = Timer(500) {
+        loadingDotCount = (loadingDotCount + 1) % 4
+        loadingLabel.text = "Loading" + ".".repeat(loadingDotCount)
+    }
+
     private val loadingPanel = createLoadingPanel()
     private var cancelLoading: (() -> Unit)? = null
 
@@ -39,16 +50,20 @@ class DockerComposeFilesPanel(model: DefaultListModel<String>) : JPanel() {
 
     init {
         layout = CardLayout()
-        add(createListViewPanel(), "ListView")
-        add(loadingPanel, "LoadingView")
+        add(createListViewPanel(), LIST_VIEW)
+        add(loadingPanel, LOADING_VIEW)
     }
 
     fun setLoadingState(loading: Boolean) {
         val cardLayout = layout as CardLayout
         if (loading) {
-            cardLayout.show(this, "LoadingView")
+            cardLayout.show(this, LOADING_VIEW)
+            // Start the timer when entering the loading state
+            loadingTimer.start()
         } else {
-            cardLayout.show(this, "ListView")
+            // Stop the timer when leaving the loading state
+            loadingTimer.stop()
+            cardLayout.show(this, LIST_VIEW)
         }
     }
 
@@ -66,11 +81,6 @@ class DockerComposeFilesPanel(model: DefaultListModel<String>) : JPanel() {
 
     private fun createLoadingPanel(): JPanel {
         val loadingPanel = JPanel(BorderLayout())
-
-        val loadingLabel = JLabel("Loading...").apply {
-            horizontalAlignment = JLabel.CENTER
-            verticalAlignment = JLabel.CENTER
-        }
 
         // Wrap the loading label in a JPanel and center it
         val centerPanel = JPanel(GridBagLayout())
@@ -93,7 +103,7 @@ class DockerComposeFilesPanel(model: DefaultListModel<String>) : JPanel() {
 
     private fun createListViewPanel(): JPanel {
         val listViewPanel = JPanel(BorderLayout())
-        listViewPanel.add(JScrollPane(dockerComposeFilesListView), BorderLayout.CENTER)
+        listViewPanel.add(JScrollPane(filesListView), BorderLayout.CENTER)
 
         val buttonPanel = JPanel()
         buttonPanel.layout = GridLayout(1, 2)
@@ -103,21 +113,29 @@ class DockerComposeFilesPanel(model: DefaultListModel<String>) : JPanel() {
 
         return listViewPanel
     }
+
+    fun getFilesListView(): JBList<String> {
+        return filesListView
+    }
+
+    companion object {
+        private const val LOADING_VIEW = "LoadingView"
+        private const val LIST_VIEW = "ListView"
+    }
 }
 
-open class DockerComposeBuildSettingsEditor(project: Project) : SettingsEditor<DockerComposeBuildRunConfiguration?>() {
+open class DockerComposeBuildSettingsEditor(project: Project) : SettingsEditor<DockerComposeBuildRunConfiguration?>(),
+    Disposable {
     private val myPanel: JPanel
-    private val myDisposable = Disposer.newDisposable()
 
-    protected var dockerPathField: TextFieldWithBrowseButton = TextFieldWithBrowseButton()
-    protected val commandArgsField: TextFieldWithCompletion
+    private var dockerPathField: TextFieldWithBrowseButton = TextFieldWithBrowseButton()
+    private val commandArgsField: TextFieldWithCompletion
 
-    protected val dockerComposeFilesList: DefaultListModel<String> = DefaultListModel()
-    protected val dockerComposeFilesListView = DockerComposeFilesPanel(dockerComposeFilesList)
+    private val dockerComposeFilesListModel: DefaultListModel<String> = DefaultListModel()
+    private val dockerComposeFilesListView = DockerComposeFilesPanel(dockerComposeFilesListModel)
+
+    private var myBackgroundableTask: CancellableBackgroundableTask? = null
     
-    protected val addDockerComposeFileButton: JButton = JButton("Add")
-    protected val removeDockerComposeFileButton: JButton = JButton("Remove")
-
     private val myOptions: Options = Options()
         .addOption(null,"build_arg", true, "Set build-time variables for services")
         .addOption(null,"compress", false, "Compress the build context using gzip")
@@ -162,10 +180,9 @@ open class DockerComposeBuildSettingsEditor(project: Project) : SettingsEditor<D
         }
 
         dockerComposeFilesListView.setRemoveAction {
-            val selectedIndices = dockerComposeFilesListView.dockerComposeFilesListView.selectedIndices
-            dockerComposeFilesListView.dockerComposeFilesListView.model
+            val selectedIndices = dockerComposeFilesListView.getFilesListView().selectedIndices
             for (i in selectedIndices.reversed()) {
-                dockerComposeFilesList.removeElementAt(i)
+                dockerComposeFilesListModel.removeElementAt(i)
             }
         }
     }
@@ -189,10 +206,10 @@ open class DockerComposeBuildSettingsEditor(project: Project) : SettingsEditor<D
 
         if (runConfiguration.dockerComposeFiles.isEmpty()) {
             loadDockerComposeFiles(runConfiguration.project) { dockerComposeFiles ->
-                updateDockerComposeFilesList(dockerComposeFiles.map { it.path })
+                updateDockerComposeFilesListModel(dockerComposeFiles.map { it.path })
             }
         } else {
-            updateDockerComposeFilesList(runConfiguration.dockerComposeFiles)
+            updateDockerComposeFilesListModel(runConfiguration.dockerComposeFiles)
         }
     }
 
@@ -204,7 +221,7 @@ open class DockerComposeBuildSettingsEditor(project: Project) : SettingsEditor<D
             throw ConfigurationException("Invalid Docker Compose path")
         }
 
-        val dockerComposeElemFilesList = dockerComposeFilesList.elements().toList()
+        val dockerComposeElemFilesList = dockerComposeFilesListModel.elements().toList()
         if (dockerComposeElemFilesList.isEmpty()) {
             throw ConfigurationException("No Docker Compose config files specified")
         }
@@ -240,53 +257,58 @@ open class DockerComposeBuildSettingsEditor(project: Project) : SettingsEditor<D
         }
 
         runConfiguration.dockerPath = dockerPath
-        if (dockerComposeFilesList.elements().toList().isNotEmpty()) {
-            runConfiguration.dockerComposeFiles = dockerComposeFilesList.elements().toList()
+        if (dockerComposeFilesListModel.elements().toList().isNotEmpty()) {
+            runConfiguration.dockerComposeFiles = dockerComposeFilesListModel.elements().toList()
         }
         runConfiguration.commandArgs = commandArgsField.text
     }
 
-    open fun updateDockerComposeFilesList(dockerComposeFiles: List<String>) {
-        dockerComposeFilesList.clear()
-        dockerComposeFiles.forEach { dockerComposeFilesList.addElement(it) }
+    override fun createEditor(): JComponent {
+        return myPanel
+    }
+
+    override fun disposeEditor() {
+        myBackgroundableTask?.cancel()
+        super.disposeEditor()
+    }
+
+    open fun updateDockerComposeFilesListModel(dockerComposeFiles: List<String>) {
+        dockerComposeFilesListModel.clear()
+        dockerComposeFiles.forEach { dockerComposeFilesListModel.addElement(it) }
     }
 
     open fun loadDockerComposeFiles(runConfigurationProject: Project, action: (List<VirtualFile>) -> Unit) {
-        object : Task.Backgroundable(runConfigurationProject, "Loading Docker Compose config files", true) {
+        myBackgroundableTask =  object : CancellableBackgroundableTask(runConfigurationProject, "Loading Docker Compose config files") {
             override fun run(indicator: ProgressIndicator) {
+                super.run(indicator)
+
                 dockerComposeFilesListView.setCancelAction { indicator.cancel() }
-                setLoadingState(true)
+                dockerComposeFilesListView.setLoadingState(true)
 
                 val files = findAllDockerComposeFiles(runConfigurationProject, indicator)
                 action(files)
             }
 
             override fun onFinished() {
-                setLoadingState(false)
+                dockerComposeFilesListView.setLoadingState(false)
             }
-        }.queue()
+        }
+
+        myBackgroundableTask!!.queue()
     }
 
     private fun addFilesToDockerComposeFilesList(files: List<VirtualFile>): Boolean {
         var duplicateFilesFound = false
         files.forEach { file ->
             val path = file.path
-            if (!dockerComposeFilesList.contains(path)) {
-                dockerComposeFilesList.addElement(path)
+            if (!dockerComposeFilesListModel.contains(path)) {
+                dockerComposeFilesListModel.addElement(path)
             } else {
                 duplicateFilesFound = true
             }
         }
 
         return duplicateFilesFound
-    }
-
-    private fun setLoadingState(loading: Boolean) {
-        // If searching is active, buttons should be disabled and vice versa
-        addDockerComposeFileButton.isEnabled = !loading
-        removeDockerComposeFileButton.isEnabled = !loading
-
-        dockerComposeFilesListView.setLoadingState(loading)
     }
 
     @VisibleForTesting
@@ -300,24 +322,15 @@ open class DockerComposeBuildSettingsEditor(project: Project) : SettingsEditor<D
     }
 
     @VisibleForTesting
-    fun setDockerComposeFilesList(pathsList: List<String>) {
-        dockerComposeFilesList.clear()
-        pathsList.forEach { dockerComposeFilesList.addElement(it) }
+    fun setDockerComposeFilesListModel(pathsList: List<String>) {
+        dockerComposeFilesListModel.clear()
+        pathsList.forEach { dockerComposeFilesListModel.addElement(it) }
     }
 
     @VisibleForTesting
-    fun getDockerComposeFilesList(): List<String> {
-        return dockerComposeFilesList.elements().toList()
+    fun getDockerComposeFilesListModel(): List<String> {
+        return dockerComposeFilesListModel.elements().toList()
     }
-
-    override fun createEditor(): JComponent {
-        return myPanel
-    }
-
-    override fun disposeEditor() {
-        Disposer.dispose(myDisposable)
-    }
-
 }
 
 class DockerComposeCompletionProvider(options: Options?) : CommandLineCompletionProvider(options) {

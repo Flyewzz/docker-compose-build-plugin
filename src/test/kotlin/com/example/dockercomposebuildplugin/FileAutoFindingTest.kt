@@ -10,7 +10,7 @@ class FileAutoFindingTest : BaseDockerComposeTestCase() {
         editor.resetEditorFrom(runConfiguration)
 
         // Check that the Docker Compose file field is set to the path of the created file
-        assertTrue(editor.getDockerComposeFilesList().contains(dockerComposeFile.absolutePath))
+        assertTrue(editor.getDockerComposeFilesListModel().contains(dockerComposeFile.absolutePath))
     }
 
     fun `test Docker Compose file auto-finding with yaml extension`() {
@@ -19,7 +19,7 @@ class FileAutoFindingTest : BaseDockerComposeTestCase() {
         editor.resetEditorFrom(runConfiguration)
 
         // Check that the Docker Compose file field is set to the path of the created file
-        assertTrue(editor.getDockerComposeFilesList().contains(dockerComposeFile.absolutePath))
+        assertTrue(editor.getDockerComposeFilesListModel().contains(dockerComposeFile.absolutePath))
     }
 
     fun `test non Docker Compose yml file is selected`() {
@@ -29,7 +29,7 @@ class FileAutoFindingTest : BaseDockerComposeTestCase() {
         editor.resetEditorFrom(runConfiguration)
 
         // Check that the Docker Compose file field is empty
-        assertEmpty(editor.getDockerComposeFilesList())
+        assertEmpty(editor.getDockerComposeFilesListModel())
     }
 
     fun `test search process of docker-compose config files in subdirectories`() {
@@ -42,14 +42,14 @@ class FileAutoFindingTest : BaseDockerComposeTestCase() {
         editor.resetEditorFrom(runConfiguration)
 
         // Check that the Docker Compose config files field is set to the path of the first file
-        assertEquals(listOf(firstFile.absolutePath, secondFile.absolutePath), editor.getDockerComposeFilesList())
+        assertEquals(listOf(firstFile.absolutePath, secondFile.absolutePath), editor.getDockerComposeFilesListModel())
     }
 
     fun `test Docker Compose empty project`() {
         editor.resetEditorFrom(runConfiguration)
 
         // Check that the Docker Compose config files field is empty
-        assertEmpty(editor.getDockerComposeFilesList())
+        assertEmpty(editor.getDockerComposeFilesListModel())
     }
 
     fun `test Docker Compose handling of recursive symbolic links`() {

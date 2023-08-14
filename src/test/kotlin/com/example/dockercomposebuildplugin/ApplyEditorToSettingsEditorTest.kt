@@ -28,7 +28,7 @@ class DockerComposeApplyEditorToSettingsEditorTest : BaseDockerComposeTestCase()
 
     fun `test applyEditorTo when all fields are valid`() {
         editor.setDockerPathFieldText(dockerComposePath.toString())
-        editor.setDockerComposeFilesList(dockerComposeConfigPaths.map { it.toString() })
+        editor.setDockerComposeFilesListModel(dockerComposeConfigPaths.map { it.toString() })
         editor.setCommandArgsFieldText("-m 4 -no_cache")
 
         editor.applyEditorTo(runConfiguration)
@@ -40,7 +40,7 @@ class DockerComposeApplyEditorToSettingsEditorTest : BaseDockerComposeTestCase()
 
     fun `test applyEditorTo`() {
         editor.setDockerPathFieldText(dockerComposePath.toString())
-        editor.setDockerComposeFilesList(dockerComposeConfigPaths.map { it.toString() })
+        editor.setDockerComposeFilesListModel(dockerComposeConfigPaths.map { it.toString() })
         editor.setCommandArgsFieldText("-m 4 --memory 2")
 
         try {
@@ -53,7 +53,7 @@ class DockerComposeApplyEditorToSettingsEditorTest : BaseDockerComposeTestCase()
 
     fun `test applyEditorTo when Docker Compose path is invalid`() {
         editor.setDockerPathFieldText("invalid path")
-        editor.setDockerComposeFilesList(dockerComposeConfigPaths.map { it.toString() })
+        editor.setDockerComposeFilesListModel(dockerComposeConfigPaths.map { it.toString() })
         editor.setCommandArgsFieldText("-m 4")
 
         try {
@@ -65,7 +65,7 @@ class DockerComposeApplyEditorToSettingsEditorTest : BaseDockerComposeTestCase()
     }
 
     fun `test applyEditorTo when Docker Compose config file path is invalid`() {
-        editor.setDockerComposeFilesList(listOf("invalid path"))
+        editor.setDockerComposeFilesListModel(listOf("invalid path"))
 
         // Set other fields to valid values
         editor.setDockerPathFieldText(dockerComposePath.toString())
@@ -85,7 +85,7 @@ class DockerComposeApplyEditorToSettingsEditorTest : BaseDockerComposeTestCase()
         val validFilePath2 = createAndRefreshFile("docker-compose.yaml").path
         val invalidPath2 = "invalid/path2"
 
-        editor.setDockerComposeFilesList(listOf(validFilePath1, validFilePath2, invalidPath1, invalidPath2))
+        editor.setDockerComposeFilesListModel(listOf(validFilePath1, validFilePath2, invalidPath1, invalidPath2))
 
         // Set other fields to valid values
         editor.setDockerPathFieldText(dockerComposePath.toString())
@@ -105,7 +105,7 @@ class DockerComposeApplyEditorToSettingsEditorTest : BaseDockerComposeTestCase()
 
         // Set other fields to valid values
         editor.setDockerPathFieldText(dockerComposePath.toString())
-        editor.setDockerComposeFilesList(dockerComposeConfigPaths.map { it.toString() })
+        editor.setDockerComposeFilesListModel(dockerComposeConfigPaths.map { it.toString() })
 
         try {
             editor.applyEditorTo(runConfiguration)
@@ -121,7 +121,7 @@ class DockerComposeApplyEditorToSettingsEditorTest : BaseDockerComposeTestCase()
 
         // Set other fields to valid values
         editor.setDockerPathFieldText(dockerComposePath.toString())
-        editor.setDockerComposeFilesList(dockerComposeConfigPaths.map { it.toString() })
+        editor.setDockerComposeFilesListModel(dockerComposeConfigPaths.map { it.toString() })
 
         try {
             editor.applyEditorTo(runConfiguration)
@@ -134,7 +134,7 @@ class DockerComposeApplyEditorToSettingsEditorTest : BaseDockerComposeTestCase()
     fun `test applyEditorTo when no docker compose config files specified`() {
         // Set other fields to valid values
         editor.setDockerPathFieldText(dockerComposePath.toString())
-        editor.setDockerComposeFilesList(emptyList())
+        editor.setDockerComposeFilesListModel(emptyList())
         // Set the Docker Compose arguments to use the same argument twice
         editor.setCommandArgsFieldText("-m 4")
 
